@@ -1,32 +1,62 @@
-import { useState, KeyboardEvent } from 'react';
-import axios from 'axios';
-import './App.css';
-import { useDynamicTextColour } from './usedynamictextcolour';
-type Weather = {
+
+export interface Weather {
   name: string;
   sys: { country: string };
-  main: { temp: number; feels_like: number; humidity: number };
-  weather: Array<{ description: string; icon: string }>;
-  wind: { speed: number };
-};
+  main: {
+    temp: number;
+    feels_like: number;
+    humidity: number;
+  };
+  weather: Array<{
+    description: string;
+    icon: string;
+  }>;
+  wind: {
+    speed: number;
+  };
+}
+
+
+export const formatDate = (): string =>
+  new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
+export const iconUrl = (icon: string): string =>
+  `https://openweathermap.org/img/wn/${icon}@4x.png`;
+
+
+import { useState, KeyboardEvent } from 'react';
+import axios from 'axios';
+import { Weather } from './types';
+import { formatDate, iconUrl } from './utils';
+import { useDynamicTextColour } from './usedynamictextcolour';
+import './App.css';
+
+const API = 'https://api.openweathermap.org/data/2.5/weather';
+const KEY = import.meta.env.VITE_OPENWEATHER_KEY ?? 'f00c38e0279b7bc85480c3fe775d518c';
 
 export default function App() {
-  const [city, setCity] = useState('');
+  const [city, setCity] = useState<string>('');
   const [weather, setWeather] = useState<Weather | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const API = 'https://api.openweathermap.org/data/2.5/weather';
-  const KEY = import.meta.env.VITE_OPENWEATHER_KEY ?? 'f00c38e0279b7bc85480c3fe775d518c';
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
 
   const textColour = useDynamicTextColour();
 
   const fetchWeather = async () => {
-    if (!city.trim()) return;
+    const trimmed = city.trim();
+    if (!trimmed) return;
+
     setLoading(true);
     setError('');
+
     try {
-      const { data } = await axios.get(API, { params: { q: city, units: 'metric', appid: KEY } });
+      const { data } = await axios.get<Weather>(API, {
+        params: { q: trimmed, units: 'metric', appid: KEY },
+      });
       setWeather(data);
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -40,25 +70,30 @@ export default function App() {
     }
   };
 
-  const handleKey = (e: KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && fetchWeather();
-
-  const currentDate = () =>
-    new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
+  const handleKey = (e: KeyboardEvent<HTMLInputElement>) =>
+    e.key === 'Enter' && fetchWeather();
 
   return (
     <div className="aurora-bg">
-      <div className="card dynamic-text" style={{ '--text-color': textColour } as React.CSSProperties}>
-        <h1 className="title dynamic-text"> Weather</h1>
+      <div
+        className="card dynamic-text"
+        style={{ '--text-color': textColour } as React.CSSProperties}
+      >
+        <h1 className="title dynamic-text">Weather</h1>
 
         <div className="search-box">
-         <input
-  className="search-input"
-  placeholder="City name…"
-  value={city}
-  onChange={(e) => setCity(e.target.value)}
-  onKeyDown={handleKey}
-/>
-          <button className="search-btn" onClick={fetchWeather} disabled={loading}>
+          <input
+            className="search-input"
+            placeholder="City name…"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            onKeyDown={handleKey}
+          />
+          <button
+            className="search-btn"
+            onClick={fetchWeather}
+            disabled={loading}
+          >
             {loading ? <span className="pulse" /> : 'Search'}
           </button>
         </div>
@@ -68,13 +103,15 @@ export default function App() {
         {weather && (
           <div className="weather-tile dynamic-text">
             <div className="header">
-              <h3>{weather.name}, <span>{weather.sys.country}</span></h3>
-              <p className="date">{currentDate()}</p>
+              <h3>
+                {weather.name}, <span>{weather.sys.country}</span>
+              </h3>
+              <p className="date">{formatDate()}</p>
             </div>
 
             <div className="body">
               <img
-                src={`https://openweathermap.org/img/wn/${weather.weather[0].icon}@4x.png`}
+                src={iconUrl(weather.weather[0].icon)}
                 alt={weather.weather[0].description}
               />
               <div className="temp">{Math.round(weather.main.temp)}°C</div>
